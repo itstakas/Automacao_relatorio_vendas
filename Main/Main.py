@@ -55,11 +55,19 @@ CREATE TABLE IF NOT EXISTS relatorio_vendas (
 );
 
 """
+cursor.execute(comando_sql) #Roda o que eu escrevi
+conexao.commit()
+
+df_excel = df_excel.fillna("N/A") #td que for NaN ele troca por N/A, dai n da erro
+df_excel['DATA_CONTRATO'] = pd.to_datetime(df_excel['DATA_CONTRATO'], errors='coerce')
+df_excel['DATA_ADESAO'] = pd.to_datetime(df_excel['DATA_ADESAO'], errors='coerce')
+
 
 for _, linha in df_excel.iterrows():
-    cursor.execute("SELECT contrato FROM relatorio_vendas WHERE contrato = %s", (linha['contrato'],))
-
-if cursor.fetchone():
+    cursor.execute("SELECT contrato FROM relatorio_vendas WHERE contrato = %s", (linha['CONTRATO'],))
+    resultado = cursor.fetchone()
+print(linha)
+if resultado:
     sql = """
         UPDATE relatorio_vendas SET
             unidade %s,
@@ -77,32 +85,33 @@ if cursor.fetchone():
             vendedor_tele %s
         WHERE contrato = %s
     """
+    valores = (
+        linha['UNIDADE'], linha['CONTRATO'], linha['NOME'],
+        linha['DATA_CONTRATO'], linha['VENDEDOR'], linha['REGIAO'],
+        linha['PLANO'], linha['DIA_PAGAMENTO'], float(linha['VALOR_ADESAO']),linha['DATA_ADESAO'],
+        linha['CONCORRENTE'], linha['SITUACAO'], linha['VENDEDOR_TELE']
+    )
+
 else:
+    print(linha)
     sql = """
         INSERT INTO relatorio_vendas
         (unidade, contrato, nome, data_contrato, vendedor, regiao, plano,
-        dia_pagamento, valor_adesao, data_adesao, concorrente, situacao, vendedor_tele)
+        dia_pagamento, valor_adesao, data_adesao, concorrente, situação, vendedor_tele)
         VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     """
-
     valores = (
-        linha['Unidade'], linha['contrato'], linha['nome'],
-        linha['data_contrato'], linha['vendedor'], linha['regiao'],
-        linha['plano'], linha['dia_pagamento'], float(linha['valor_adesao']),
-        linha['concorrente'], linha['situacao'], linha['vendedor_tele']
+        linha['UNIDADE'], linha['CONTRATO'], linha['NOME'],
+        linha['DATA_CONTRATO'], linha['VENDEDOR'], linha['REGIAO'],
+        linha['PLANO'], linha['DIA_PAGAMENTO'], float(linha['VALOR_ADESAO']),linha['DATA_ADESAO'],
+        linha['CONCORRENTE'], linha['SITUACAO'], linha['VENDEDOR_TELE']
     )
 
-cursor.execute(comando_sql, sql, valores) #Roda o que eu escrevi
+    cursor.execute(sql, valores)
+
 conexao.commit() #Commita/salva no banco de verdade
-
-#cursor.execute("DESCRIBE relatorio_vendas") #so pra mostrar a tabela criada mesmo, apagar depois
-#for linha in cursor.fetchall():
-#    print(linha)
-
 cursor.close() #fecha o cursor pra liberar memoria
 conexao.close() #fecha a conexao com o bd
 
 print("Tabela criada com sucesso") #Confecção de erros
 print(f"Processo concluído! {len(df_excel)} registros processados.")
-
-

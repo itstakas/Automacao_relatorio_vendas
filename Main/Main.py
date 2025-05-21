@@ -32,9 +32,9 @@ df_excel['VENDEDOR_TELE'] = None
 for _, row_csv in df_csv.iterrows():
     mask = df_excel['NOME'] == row_csv['Cliente']
     df_excel.loc[mask, 'VENDEDOR_TELE'] = row_csv['Vendedor']
-
-conexao = mysql.connector.connect(
-    host="localhost",
+onnect(
+    host="l
+conexao = mysql.connector.cocalhost",
     user="root",
     password="1234",
     database="bdvendas"

@@ -4,13 +4,14 @@ from struct import pack_into
 
 import pandas as pd
 from numpy.f2py.crackfortran import usermodules
-
 import mysql.connector
+import streamlit as st
+from dashboard import main
 
 caminho_csv = "../Content/e91da71a-5b6e-4a07-8584-707fd264ac45.csv"
 caminho_excel = "../Content/Planilha1.xlsx"
 
-df_csv = pd.read_csv(caminho_csv, sep=";") #arquivo csv tem que ter esse "sep=;" ou "sep=." pq se n fica tudo numa linha so
+df_csv = pd.read_csv(caminho_csv, sep=";") #arquivo csv tem ue ter esse "sep=;" ou "sep=." pq se n fica tudo numa linha so
 df_excel = pd.read_excel(caminho_excel)
 
 colunas_csv_uteis = ['Cliente', 'Vendedor']
@@ -18,9 +19,13 @@ df_csv = df_csv[colunas_csv_uteis]
 df_csv = df_csv.dropna()
 
 colunas_excel_uteis = ['UNIDADE', 'CONTRATO', 'NOME', 'DATA_CONTRATO', 'VENDEDOR', 'REGIAO', 'PLANO',
-                       'DIA_PAGAMENTO', 'ROTA', 'VALOR_ADESAO', 'DATA_ADESAO', 'CONCORRENTE', 'SITUACAO']
+                       'DIA_PAGAMENTO', 'ROTA', 'VALOR_ADESAO', 'DATA_ADESAO', 'CONCORRENTE', 'SITUACAO'
+]
 df_excel = df_excel[colunas_excel_uteis]
 df_excel = df_excel.dropna(subset=['PLANO'])
+df_excel = df_excel.fillna("N/A")  # td que for NaN ele troca por N/A, dai n da erro
+df_excel['DATA_CONTRATO'] = pd.to_datetime(df_excel['DATA_CONTRATO'], errors='coerce')
+df_excel['DATA_ADESAO'] = pd.to_datetime(df_excel['DATA_ADESAO'], errors='coerce')
 
 df_excel['VENDEDOR_TELE'] = None
 
@@ -58,40 +63,43 @@ CREATE TABLE IF NOT EXISTS relatorio_vendas (
 cursor.execute(comando_sql) #Roda o que eu escrevi
 conexao.commit()
 
-df_excel = df_excel.fillna("N/A") #td que for NaN ele troca por N/A, dai n da erro
-df_excel['DATA_CONTRATO'] = pd.to_datetime(df_excel['DATA_CONTRATO'], errors='coerce')
-df_excel['DATA_ADESAO'] = pd.to_datetime(df_excel['DATA_ADESAO'], errors='coerce')
-
-
 for _, linha in df_excel.iterrows():
     cursor.execute("SELECT contrato FROM relatorio_vendas WHERE contrato = %s", (linha['CONTRATO'],))
     resultado = cursor.fetchone()
+
+    valores = (
+        linha['UNIDADE'], linha['CONTRATO'], linha['NOME'],
+        linha['DATA_CONTRATO'], linha['VENDEDOR'], linha['REGIAO'],
+        linha['PLANO'], linha['DIA_PAGAMENTO'], float(str(linha['VALOR_ADESAO']).replace(",",".")), linha['DATA_ADESAO'],
+        linha['CONCORRENTE'], linha['SITUACAO'], linha['VENDEDOR_TELE']
+    )
+
 print(linha)
 if resultado:
     sql = """
         UPDATE relatorio_vendas SET
-            unidade %s,
-            contrato %s,
-            nome %s,
-            data_contrato %s,
-            vendedor %s,
-            regiao %s, 
-            plano %s,
-            dia_pagamento %s,
-            valor_adesao %s,
-            data_adesao %s,
-            concorrente %s,
-            situação %s,
-            vendedor_tele %s
+            unidade = %s,
+            contrato = %s,
+            nome = %s,
+            data_contrato = %s,
+            vendedor =%s,
+            regiao = %s, 
+            plano = %s,
+            dia_pagamento = %s,
+            valor_adesao = %s,
+            data_adesao = %s,
+            concorrente = %s,
+            situação = %s,
+            vendedor_tele = %s
         WHERE contrato = %s
     """
     valores = (
         linha['UNIDADE'], linha['CONTRATO'], linha['NOME'],
         linha['DATA_CONTRATO'], linha['VENDEDOR'], linha['REGIAO'],
-        linha['PLANO'], linha['DIA_PAGAMENTO'], float(linha['VALOR_ADESAO']),linha['DATA_ADESAO'],
-        linha['CONCORRENTE'], linha['SITUACAO'], linha['VENDEDOR_TELE']
+        linha['PLANO'], linha['DIA_PAGAMENTO'], float(str(linha['VALOR_ADESAO']).replace(",",".")),
+        linha['DATA_ADESAO'], linha['CONCORRENTE'], linha['SITUACAO'], linha['VENDEDOR_TELE'], linha['CONTRATO']
     )
-
+    cursor.execute(sql, valores)
 else:
     print(linha)
     sql = """
@@ -103,7 +111,7 @@ else:
     valores = (
         linha['UNIDADE'], linha['CONTRATO'], linha['NOME'],
         linha['DATA_CONTRATO'], linha['VENDEDOR'], linha['REGIAO'],
-        linha['PLANO'], linha['DIA_PAGAMENTO'], float(linha['VALOR_ADESAO']),linha['DATA_ADESAO'],
+        linha['PLANO'], linha['DIA_PAGAMENTO'], float(str(linha['VALOR_ADESAO']).replace(",",".")),linha['DATA_ADESAO'],
         linha['CONCORRENTE'], linha['SITUACAO'], linha['VENDEDOR_TELE']
     )
 
@@ -113,5 +121,8 @@ conexao.commit() #Commita/salva no banco de verdade
 cursor.close() #fecha o cursor pra liberar memoria
 conexao.close() #fecha a conexao com o bd
 
-print("Tabela criada com sucesso") #Confecção de erros
+print("Tabela criada com sucesso") #Confecção de eENDEDORrros
 print(f"Processo concluído! {len(df_excel)} registros processados.")
+
+if __name__ == "__main__":
+    main()
